@@ -8,7 +8,7 @@
 \IfFontExistsTF{Times New Roman}{\setmainfont{Times New Roman}}{\setmainfont{TeX Gyre Termes}}
 \IfFontExistsTF{Songti SC}{\setCJKmainfont{Songti SC}}{\IfFontExistsTF{SimSun}{\setCJKmainfont{SimSun}[AutoFakeBold=2]}{\setCJKmainfont{FandolSong-Regular.otf}[BoldFont=FandolSong-Bold.otf]}}
 \definecolor{courseblue}{HTML}{1D405A}
-\hypersetup{colorlinks=true,allcolors=courseblue,pdfauthor={徐波},pdftitle={工具调用系统中工作流与智能体的决策边界研究},pdfsubject={基于论文去重任务的对照实验}}
+\hypersetup{colorlinks=true,allcolors=courseblue,pdfauthor={徐波},pdftitle={工具调用系统中工作流与智能体的决策边界研究},pdfsubject={论文去重中的工具选择权与停止权检验}}
 \urlstyle{same}
 \setlength{\headheight}{16pt}
 \setlength{\parindent}{2em}
@@ -23,7 +23,7 @@
 \newcommand{\studentnumber}{22634025}
 \newcommand{\studentcollege}{海洋学院}
 \newcommand{\reporttitle}{工具调用系统中工作流与智能体的决策边界研究}
-\newcommand{\reportsubtitle}{基于论文去重任务的对照实验}
+\newcommand{\reportsubtitle}{论文去重中的工具选择权与停止权检验}
 % 取自 haochengxia/zjureport 模板的 zju_logo.png 与 zju_char.png。
 % 下列 ASCII PDF 是可移植的校徽资源；编译时会自动生成图片文件，无需外部素材。
 \begin{filecontents*}[overwrite]{\jobname-zju-mark.pdf}
@@ -3296,181 +3296,147 @@ startxref
 \phantomsection\section*{摘要}
 \addcontentsline{toc}{section}{摘要}
 
-同一套退款系统里，店铺可以要求每笔付款都核对，同时让模型选择先查哪一笔。这样的分工提出了一个问题：工作流按规则办事、智能体根据线索采取行动，两者的界限在一次调查中具体落在哪里？本文把范围收窄到工具返回结果后的两项决定：一是何时结束查询，二是继续时查哪项资料。当模型和店铺规则都要求核对第二笔付款时，两种做法会留下相同的查询记录。我们在论文去重任务中固定已知资料，让模型建议与规则发生分歧，再从程序实际执行的动作检验这两项决定分别由谁掌握。实验显示，模型可以选择查询字段，同时由规则控制停止时点。本文还比较了不同查询策略下的查询次数与匹配错误，讨论把决定交给模型后的实际得失。\par
+现有研究常以执行路径是否预先设定来区分工作流与智能体。随着规则、模型和人工审核被编入同一流程，一个应用可以在不同步骤采用不同的分工。对开发者而言，需要弄清的是：工具返回结果之后，模型在什么条件下能选择下一项工具，又在什么条件下能结束任务？本文提出一种逐项检验决策权的方法。我们把工具选择权和停止权分开记录，固定程序已掌握的信息，只改变送入程序的行动建议，再根据实际动作判读两项权限。我们用分工已知的程序检验这一方法，并将执行记录与数据去重结果逐条对照。检验辨认出一种有条件的授权：规则要求继续时，模型可以选择工具；规则决定是否停止。对照行动和最终判断，还可以区分由取证路线和由评分规则造成的差异。该方法可用于核对系统实际授予模型的权限，并定位一次行为改变如何影响最终判断。\par
 
-\textbf{关键词}　工作流；智能体；工具调用；论文去重\par
+\textbf{关键词}　工作流；智能体；工具调用；决策权；论文去重\par
 
-\section{工作流与智能体的基本概念及应用场景}
+\section{研究背景与基本概念}
 
-\subsection{工作流的预设步骤与条件分支}
+\subsection{售后服务的任务与选例依据}
 
-工作流（Workflow）是一套事先安排好的办事步骤。设计者规定从哪里开始、每一步做什么、遇到不同情况转到哪里。假设顾客留言：“订单显示已退款，为什么我还没收到？”店铺可以事先写好核查步骤：先看退款单，若退款还未提交，就交给售后专员。若已提交，就按原支付方式核对退回记录，两边记录对不上时再转人工。两个顾客可能得到不同处理，因为订单信息不同。遇到哪种情况走哪一步，已经写在流程里。\par
+工作流（Workflow）由设计者事先安排处理步骤。使用大语言模型的智能体（Agent）则能根据目标和新得到的信息，在运行中选择下一步行动 [3]。为比较这两种做法，我们先看电商售后。客服收到顾客留言，首先要弄清顾客要退货、换货还是查询进度，再按订单和支付记录办理，必要时交给有审批权限的人。\par
 
-工作流也能用大语言模型。比如顾客没有点按钮，只写了一句“这双鞋小了，想换一双”。系统可以请模型读懂这句话，把它分到“换货”，后面的步骤继续按换货流程走。模型参与了理解顾客这句话，但换货和退款分别有哪些后续步骤，仍是设计者事先规定的。\par
+选择售后有一个具体理由：\textbf{同一张工单里同时有必须遵守的政策和需要临场判断的调查。} 申请是否符合退款条件，可以依据事先写好的规则；一笔钱退到了哪里，要看此前查到了什么。两项工作共用一张订单，读者可以看到改变的究竟是哪一步。Google Cloud 的工程示例也用一笔退款比较过两种方案，一种由模型选工具和应用政策，另一种拆出资料查询、规则判断和人工复核 [1]。下文用一笔分两次付款的示例订单讲清调查环节，第 3 章再用有标准答案的书目数据检验我们的判断。\par
 
-这类做法适合\textbf{规则说得清、需要反复办理同类任务}的场景。报销审批要检查单据和审批额度，定期清洗数据要依次检查列名、缺失值和重复记录。把这些步骤写成工作流，出错时可以查到哪条规则起了作用；如果出现了规则没有覆盖的情况，就要补充分支或请人处理。\par
+\subsection{工作流的预设步骤与应用场景}
+
+顾客留言：“订单显示已退款，为什么我还没收到？”在工作流里，店铺可以规定先读退款单；如果款项尚未退回，就交给经办人员，如果已经退回，就按原支付方式逐笔核对到账记录。路径会随记录内容改变，每个分支要满足的条件和要执行的操作都已写进程序。模型也可以参与其中，例如读懂“这双鞋小了”，把工单分到预设的换货流程。\par
+
+这类做法适合规则明确、要反复办理的任务。报销流程按金额确定审批人，数据清洗流程逐项检查列名和缺失值，都是类似的应用。发现漏查时，维护者可以定位到要修改的分支。\par
 
 \par\smallskip\noindent\begin{minipage}{\linewidth}\centering
 \includegraphics[width=.96\linewidth,height=.39\textheight,keepaspectratio]{\jobname-workflow.pdf}\par
 \smallskip{\small\bfseries 图 1　工作流把请求分到预设的处理分支\par}
 {\footnotesize 图源：\href{https://docs.langchain.com/oss/python/langgraph/workflows-agents}{LangChain《Workflows and agents》}（MIT）\par}
-\smallskip\raggedright\normalsize 图 1 中，输入（In）先到分流器（Router）。沿虚线往右看，它可以把请求送到三个已经设置好的去向之一。把这三个去向想成退款、换货和进度查询，就能看出：分流器可以很聪明，目的地仍由人预先安排。\par
+\smallskip\raggedright\normalsize 图 1 的分流器（Router）从三个预设去向中选择一个，可类比退款、换货、进度查询。处理的业务不同，进入的分支也不同。\par
 \end{minipage}\par\smallskip
 
-\subsection{智能体的目标与工具选择}
+\subsection{智能体的工具选择与应用场景}
 
-这里讨论的是使用大语言模型的智能体（Agent）。人给它一个目标，程序提供可用的工具和上限；模型选择先用哪个工具，读到返回的结果后，再决定继续查、换一种办法，还是结束 [3]。这里的“工具”可以很普通，例如查询订单的接口、一张可以检索的资料表，或者运行软件测试的命令。\par
-
-现在用智能体处理刚才那条“退款未到账”的留言。可以把“查清这笔退款的去向”交给智能体。它先查订单，若发现订单分成两次付款，就分别核对两笔记录；若发现退款已经退回礼品卡，就去查礼品卡流水。查哪一项取决于刚刚发现的线索。店铺仍然可以规定它只能查询、不能发起付款，也可以随时转人工。这样既给了它调查的空间，也划清了它能做什么。\par
-
-智能体适合\textbf{目标说得清、调查路线却要边做边定}的场景。例如整理相互矛盾的资料时，下一份要找的来源取决于争议点；排查一个软件测试为何失败时，要先读报错，再决定检查哪个文件。这种灵活性也有代价：模型可能绕远路，或者只看了第一条线索就过早结束 [3]。\par
+同样是“查清退款去向”，店铺也可以提供订单、银行卡流水和礼品卡流水三个查询工具，由模型决定先查什么。模型查完订单，若发现退款退回礼品卡，就去查卡内流水；若发现订单分两笔支付，则可以先追查尚未到账的那一笔。每次得到的线索都能成为下一次选工具的依据。调查异常订单、核对相互矛盾的资料，都有这种特点。\par
 
 \par\smallskip\noindent\begin{minipage}{\linewidth}\centering
 \includegraphics[width=.96\linewidth,height=.39\textheight,keepaspectratio]{\jobname-agent.pdf}\par
 \smallskip{\small\bfseries 图 2　智能体根据工具返回的结果选择下一步\par}
 {\footnotesize 图源：\href{https://docs.langchain.com/oss/python/langgraph/workflows-agents}{LangChain《Workflows and agents》}（MIT）\par}
-\smallskip\raggedright\normalsize 图 2 的下方有一条回到左侧的箭头。右侧的工具（Tool）完成查询，把结果作为反馈（feedback）送回模型（LLM call）。模型读到这项新信息，再选择下一项行动（action）。\par
+\smallskip\raggedright\normalsize 图 2 中，工具（Tool）把查询结果送回模型（LLM call）。沿着回到左侧的箭头，模型可以提出下一次查询，也可以结束这轮调查。\par
 \end{minipage}\par\smallskip
 
-\Needspace{12\baselineskip}
-\subsection{售后场景中的调查与审批}
+现在看那笔分两次付款的订单。第一笔退款已经到账，第二笔还没核对，模型建议结束。若店铺规定两笔都要查，程序会继续核对；若把结束调查的权力也交给模型，查询就会停在这里。店铺还可以规定两笔都得查，但允许模型选先后顺序。在第三种安排下，“查哪一笔”和“什么时候查完”分别由模型和规则决定。退款能否批准，仍可另交审批环节处理。\par
 
-\begingroup\small\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.24}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.31699\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.31699\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.36603\dimexpr\linewidth-6\tabcolsep\relax}}
-\toprule
-\textbf{比较的问题} & \textbf{工作流} & \textbf{本文讨论的智能体} \\
-\midrule
-\endhead
-运行前，人要交代什么？ & 步骤、分支和各分支的处理规则 & 目标、可用工具以及不能越过的限制 \\
-第一步没有查清，接下来怎么办？ & 执行事先写好的分支或重试规则 & 模型读到反馈，再从允许的动作中选择 \\
-在售后系统里适合做什么？ & 执行退款政策，安排审批或转人工 & 调查原因尚不明确的个案，决定下一项查什么 \\
-该重点检查哪里？ & 分支条件是否漏掉特殊情况 & 选的工具是否有用，停止时证据是否足够 \\
-\bottomrule
-\end{longtable}\endgroup
-同一家店可以让模型调查异常，同时保留固定的退款审批规则。要区分两种做法，可以只看调查中的一个环节：什么时候结束核对？\par
+\section{技术演进与行业争议}
 
-假设一笔订单分成两次付款。客服系统已经确认第一笔退款到账，第二笔还没核对。模型此时建议“结束查询”。甲系统的规则要求逐笔核对，因此它会继续查第二笔。乙系统允许模型结束调查，收到同一句建议后，它会关闭这次查询。两边看到的订单相同，模型给出的建议也相同；一边继续、一边停止，差别在于\textbf{谁有权结束调查}。\par
+\subsection{从工具反馈到混合编排}
 
-店铺还可以采用第三种做法：两笔款都必须查完，但允许模型选择先查哪一笔。在这种安排下，查询顺序由模型决定，何时结束由规则决定。至于是否批准退款，仍可由另一套审批流程处理。\par
+ReAct 研究展示了让语言模型交替进行推理和外部操作的做法：一次操作得到的反馈能影响下一步行动 [2]。2024 年，Anthropic 从工程架构出发区分了预设路径上的工作流与模型动态安排步骤的智能体，并指出预设分支也可以由模型做分类 [3]。这给出了分析单一流程的起点。\par
 
-\section{技术演进与决策边界}
+随后的开发工具允许两种结构出现在同一应用里。Google 在 2025 年推出 Agent Development Kit（ADK），让开发者组合预设编排和模型控制的步骤 [4]。2026 年，Anthropic 的 Managed Agents 将保存会话记录、组织模型调用和实际执行工具分成独立组件 [5]。因此，查看“哪个组件访问了数据库”和追问“谁选择在这时访问数据库”，会得到两种不同的信息。前者有助于排查执行故障，后者才涉及本报告研究的分工。\par
 
-\subsection{从工具调用到多步骤任务}
+\subsection{架构名称与实际决策权}
 
-2023 年发表的 ReAct 研究展示了一种做法：让模型查一次资料，读到结果后再决定下一次行动。它让模型有机会用外部证据修正调查方向 [2]。2024 年，Anthropic 从工程角度区分了按预设路线组织的工作流和由模型动态选择步骤的智能体，同时把“先判断输入类别，再交给相应流程”列为常见的工作流 [3]。\par
+对同一种“读懂留言并分流”的结构，工程文档采用了不同的命名口径。Anthropic 把先分类再进入预设分支归入路由工作流 [3]。Google Cloud 则把读懂请求、选择退款或换货分支的节点称为 agent router，同时明示可选去向由工作流规定 [1]。这两种口径分别描述了整套架构和其中一个节点。对售后负责人来说，更有用的说明是：模型能选择把工单交给谁，店铺政策能决定退款是否获批，而查证过程还可以另行授权。\par
 
-到了 2025 年，Google 推出 Agent Development Kit（ADK），开发者可以把顺序执行、循环以及调用模型的环节组合在一起 [4]。2026 年，Anthropic 的托管系统又把保存会话、组织模型调用和执行工具分开 [5]。以订单查询为例，负责访问数据库的始终是程序。一次查询可以由固定步骤触发，也可以由模型读到新线索后提出。两者在日志中都可能只显示为“查询了订单”。\par
+工程上由此产生了实际取舍。逐笔核对便于保证资料齐全，遇到付款方式变化时却需要有人维护分支。把调查交给模型，能让它根据新线索选工具，也要决定它何时可以收工。两种安排都可能给顾客同样的答复。如果要知道哪一项授权值得保留，就要分别回答谁掌握各项决定，以及实际用了多少资料、留下了哪些错误。\par
 
-\subsection{系统架构与局部决策的命名差异}
+\subsection{从任务评分到执行记录}
 
-Google Cloud 的售后示例把理解“退款还是换货”的模型称为 agent router，意思是由模型识别请求并选择去向。可选的去向事先画在图里，退款能否批准由规则函数判断 [1]。Anthropic 将相似的整体结构称为路由工作流 [3]。这两种命名关注不同层次：前者讲的是谁读懂顾客的请求，后者描述一项请求从受理到办结所经过的流程。\par
+评测也有类似的选择。Anthropic 在 2026 年的工程指南中建议，对允许多条合理路线的任务按最终成果评分，诊断分数从何而来时则回读执行记录 [10]。Rabanser 等将智能体可靠性分解为一致性、稳健性等维度 [6]。Wiedmann 等在四类科研任务的预印本研究中发现，仅提示模型复核答案，对实际复核行为影响很小；提供专门的复核工具后，行为出现了较大变化 [7]。这些工作共同提示了一项设计问题：写给模型的要求、提供给它的选项、程序最后采取的动作，需要分别检查。\par
 
-这种差异关系到系统设计。开发者可以把请求分流交给模型，把退款审批保留在固定流程里。如果再加入调查环节，还要单独决定模型能查哪些资料、什么时候结束调查。有关智能体可靠性的研究也把可用工具、提示和系统配置纳入考察 [6, 7]。\par
+本文从中选取一个可操作的切口：\textbf{在工具返回结果、系统即将采取下一步行动的时刻，怎样从实际动作核对工具选择权和停止权？} 为了检验一个判断，我们需要能回到同一时刻，再尝试另一条建议。下一章先说明什么任务具备这个条件，以及其中每一种行动具体意味着什么。\par
 
-\subsection{研究范围与核心问题}
+\section{论文去重任务与验证条件}
 
-本文把观察点放在调查中的一个时刻：查询工具刚返回结果，系统要决定接下来做什么。它可以就此结束，也可以继续取证。如果继续，还要从可用工具中选一项。前一个决定关系到何时收齐证据，我们称为\textbf{停止权}；后一个决定关系到下一条证据来自哪里，我们称为\textbf{工具选择权}。\par
+\subsection{任务目标、输入与可选行动}
 
-本文的核心问题是：\textbf{在这两个决定上，哪些必须遵守预设规则，哪些可以交给模型根据新线索作出？} 以分两笔付款的订单为例，规定每笔都要核对的店铺保留了停止权，同时可以让模型选择先查哪一笔。这样的分工也可能影响调查效果。允许提前停止可以省下一次核对，也可能漏查第二笔。因此，识别两项决定分别归谁之后，我们还比较实际用了多少次查询、留下了哪些错误。\par
+假设图书馆要合并两个书目库。对于一对题名相似的记录，任务是判断它们是否指向同一篇作品。“合并”表示同篇，“分开”表示不同篇。我们使用 DBLP 和 ACM 的书目及已核实的匹配关系 [9]。系统先看到两条题名，然后按需要读取作者、年份或发表来源。读某一字段算一次查询，最多可查两个字段；停止后，用已经读到的字段作出合并判断。这种安排对应数据挖掘中的一个常见问题：每次取得额外信息都要付出代价，应当先取哪项特征 [8]。\par
 
-\subsection{实验动机与原创设计}
+以真实记录 T21 为例。两条题名都指向一次关于 Web 服务器性能与架构的研讨会，较长的一条还带有研讨会简称和举办活动。两者确实是同一条记录。我们让程序先查作者，再设置一侧作者缺失的情形。此时仍有一次查询机会，\textbf{停止、查年份、查发表来源}都是允许的行动。“查年份”会看到两边都写着 2000 年，“查来源”会读到同一本期刊的两种写法。选择不同，取得的证据就不同。\par
 
-假设两条论文记录的作者栏都写着同一个人，规则要求再查年份，模型也建议查年份。系统执行后，日志上只有一条“查年份”。规则和模型都能解释这条记录。现在保留同样的书目信息和规则，让建议改为“查发表来源”。程序若真的改查来源，就说明在当前条件下，模型可以选择查什么；再将建议改为“停止”，就能单独检验它能否结束查询。这是设置对照的理由：让两种分工在同一处产生可以辨认的动作差异。\par
+售后把“继续核对”和“先核对哪笔”放进了熟悉的业务背景。书目核验保留这两种决定，还多了两项验证条件：同一对书目可以回到完全相同的查询状态，每次作出的匹配判断都有已知答案可核对。我们因此选择它来验证方法。\par
 
-我们的第一项设计，是把上述两个追问做成一组可以重复的测试。我们预先写好四种程序，明确每种程序交给模型哪些决定。其中一组只把建议写入日志，仍由规则办事。每种程序都接收相同的资料和同一组建议。我们根据实际动作判断模型能否换字段、能否停止，再与事先设定的权限核对。这样可以检验这套方法能否识别“规则规定要继续，但模型能选接下来查什么”这样的混合分工。\par
+\subsection{用于核对的已知分工}
 
-第二项设计，是把查询记录和匹配结果逐对核对，追查两种策略为什么会得出不同答案。对同一对书目，分别试过停止、查年份和查来源后，用相同的评分方法判断是否同篇，就能逐例查明哪一步改变了合并结果。随后让三种查询策略各自从头完成同一批任务，比较各组的查询次数和合并错误。遇到同一对书目判得不同时，再检查两组各查了哪个字段，以及评分程序怎样解释字段的内容。由此可以看出，换一种分工会多查或少查多少次，哪些记录的匹配判断发生了变化，原因又是什么。\par
+我们写了四种处理查询的程序。第一种完全按规则行动。第二种也按规则行动，但额外保存模型给出的建议。第三种由规则决定是否继续；需要继续时允许模型在年份和来源之间选择。第四种允许模型从三个合法行动中任选其一。这些权限在验证前已经确定，为判读结果提供了核对依据。四种程序共用书目数据和评分方法。\par
 
-\section{论文去重任务与对照实验设计}
+初始建议由模型在匿名输入下作出并保存。检验决策权时，我们从 32 对测试书目中取出 8 对容易混淆的记录，各保留一份作者完整的版本，再制作一份遮去一侧作者的版本。这样，一共得到 16 个可重新运行的查询状态。采样、评分和完整结果见附录。\par
 
-\subsection{书目核验任务与样本}
+\section{本文提出的决策权逐项检验方法}
 
-设想图书馆要合并两份书目。一条记录的题名是“关于 Web 服务器性能与架构的研讨会”，另一条除了这句话，还加了会议简称和举办活动。它们可能是同一份研讨会记录，也可能只是主题相近。这正是 DBLP 和 ACM 两个数据库中的一对真实记录。我们把它编号为 T21。已知答案是同一条记录，但实验时系统看不到答案 [9]。\par
+\subsection{改进思路与记录方式}
 
-售后系统按付款记录逐笔核对，书目系统则按字段逐项核对。两者都会在一次查询后遇到“可以结束了吗？如果继续，要查什么？”这两个决定。在书目任务中，同一份记录可以从同一处重新核验，数据库还提供已核实的匹配关系，便于检查每条取证路线的结果。逐项查询的设置也对应数据挖掘中按需获取特征的问题 [8]。\par
+现有架构描述告诉我们，程序可以安排步骤，模型也可以选工具。本文的原创尝试是把这一区分变成\textbf{可以逐步填写、可以用执行结果核对的决策记录}。一条记录只回答特定状态下的两件事：模型能决定选用哪个工具吗？模型能决定现在结束吗？例如，模型有资格查年份，却可能必须等规则决定继续后才能行使这项选择。把两项权限写在不同栏里，就能保留这个条件。\par
 
-以 T21 为例，先查作者，再模拟一条记录缺少作者的情况。系统还可查一次。查年份，两边都写着 2000 年；查发表来源，两边均为《SIGMOD Record》。这两条路线都能给评分程序提供足够的证据，让它把两条记录合并。如果当场停止，程序就只能凭已经看到的资料作判断。\par
+一条记录保留四类信息：\textbf{当时已知的资料、送入的建议、程序实际动作、最后的匹配判断}。先记下模型原本的建议，用于了解它在这份资料上会怎么选；随后固定资料、规则、可用工具和剩余查询次数，由研究者替换建议。记录实际执行了什么，再把执行结果同已知权限相核对。只保存建议的程序在这里很有用：即使日志里有模型输出，也能检查这段输出究竟改变了哪一步。\par
 
-\subsection{模型建议与规则冲突的对照设计}
+\subsection{两项权限的判读与填写示例}
 
-在上述作者信息不全的 T21 上，模型实际建议查年份，规则指定查来源。围绕这一处分歧，我们按下面的步骤核对各程序的决策权。\par
-
-\textbf{第一步，固定书目资料，只替换建议。} 保留两条题名、已查到的作者信息、剩余查询次数和评分程序。先保存模型原本的选择，再由研究者依次向同一程序送入“停止”“查年份”“查来源”三条测试建议。每次都从同一个查询状态开始，记录程序实际执行的动作。\par
+工具选择权用两条查询建议检验。先送入“查年份”，还原同一状态，再送入“查来源”。若程序先后实际查了这两个不同的字段，说明在当前状态下模型可以选工具。停止权则把“停止”与查询建议对照：一种建议能让程序停止，另一种能让它继续，才把停止权记在模型名下。若三条建议都得到“停止”，就在工具选择一栏记为“本轮没有查询机会”。至于是哪条规则结束了这一轮，再用程序预设的停止条件核对。\par
 
 \Needspace{8\baselineskip}
-\textbf{第二步，分别检验工具选择权和停止权。} 下表列出四种程序预先设定的分工。前两种都按规则行动，区别只在于第二种会把模型的建议写入日志。后两种逐步增加模型能作的决定。查什么、何时停，分别用对应的动作来核对。\par
+下表是第三种程序在 T21 上的完整填写示例。作者完整和作者缺失是两次独立的检验。每列从上往下读，同一列中只替换建议。括号内是看到相应资料后作出的匹配判断。\par
 
 \begingroup\small\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.24}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.32571\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.33714\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.33714\dimexpr\linewidth-6\tabcolsep\relax}}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.26759\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.35399\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.37843\dimexpr\linewidth-6\tabcolsep\relax}}
 \toprule
-\textbf{同一条建议交给谁处理} & \textbf{模型建议停止，而规则要求继续时} & \textbf{规则要求继续，模型想换个字段时} \\
+\textbf{送入程序的建议} & \textbf{作者完整时的实际动作（判断）} & \textbf{一侧作者缺失时的实际动作（判断）} \\
 \midrule
 \endhead
-完全按规则办 & 继续，查规则指定的字段 & 查规则指定的字段 \\
-记录模型建议，仍按规则办 & 记下“停止”，继续查 & 记下建议，仍查原字段 \\
-规则决定是否继续，模型选字段 & 继续，查规则指定的字段 & 采用模型选的字段 \\
-模型可选字段，也可停止 & 停止 & 采用模型选的字段 \\
+停止 & 停止（合并） & 查来源（合并） \\
+查年份 & 停止（合并） & 查年份（合并） \\
+查来源 & 停止（合并） & 查来源（合并） \\
+工具选择权的判读 & 本轮没有查询机会 & 模型能选年份或来源 \\
+停止权的判读 & 规则要求停止 & 规则要求继续 \\
 \bottomrule
 \end{longtable}\endgroup
-\textbf{第三步，核对每种动作对应的匹配结果。} 每次运行后，我们用同一套评分方法处理实际查到的资料，把“查了什么”“是否合并”“与已知答案是否一致”并排记录。这样既能找到换了字段仍然判为同篇的例子，也能定位提前停止导致漏合并的记录。\par
-
-\subsection{决策权检验与查询策略评估}
-
-\textbf{决策权检验。} 我们从测试集中取出包括 T21 在内的 8 对容易混淆的记录，每对看两遍：一次保留双方作者，一次遮去一侧作者。这样得到 16 种情形。第一步统一查作者，以便四种程序面对完全相同的选择。模型在匿名输入下给出实际建议，我们保存这些建议，再做上述三种替换。\par
-
-\textbf{查询策略评估。} 在全部 32 对记录上，三种策略各自从只看题名开始核验：一种依次查作者和年份，一种按预设条件查询，一种由模型逐步决定。每项任务最多再查两个字段，由相同的评分程序判断是否合并。我们统计三组各查了多少次，核对哪些记录被误合并、哪些真实匹配被漏掉。前面用于检验决策权的 8 对记录取自这 32 对。采样与评分细节见附录。\par
-
-\section{实验结果与分析}
-
-\subsection{工具选择权与停止权的检验结果}
-
-在 T21 作者信息不全的条件下，使用模型原先给出的建议，前两种程序按规则查来源，后两种查模型选择的年份，四种都认出了同一条研讨会记录。只把建议改成“停止”后，前三种仍然查来源，继续答对；第四种真的停了，因为证据不足，漏掉了这项匹配。这样就能把两种权力分清：第三种程序允许模型换一个字段，却不允许它把核对提前结束。\par
-
-\Needspace{8\baselineskip}
-其他记录也能按同样的方法检查。下表每列都写“在 16 种情形中，有多少种会受建议影响”。例如，8/16 表示有 8 种情形，换一条建议就能使后台在年份和来源之间切换。\par
-
-\begingroup\small\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.24}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.32075\dimexpr\linewidth-8\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.24246\dimexpr\linewidth-8\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.20998\dimexpr\linewidth-8\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.22680\dimexpr\linewidth-8\tabcolsep\relax}}
-\toprule
-\textbf{后台采用哪种做法} & \textbf{能让程序停或继续} & \textbf{能换一个字段} & \textbf{能改变是否合并} \\
-\midrule
-\endhead
-完全按规则办 & 0/16 & 0/16 & 0/16 \\
-记录模型建议，仍按规则办 & 0/16 & 0/16 & 0/16 \\
-规则决定是否继续，模型选字段 & 0/16 & 8/16 & 1/16 \\
-模型可选字段，也可停止 & 16/16 & 16/16 & 5/16 \\
-\bottomrule
-\end{longtable}\endgroup
-使用模型最初给出的建议时，四种程序在 16 种情形中作出的匹配判断逐条相同，各答对 12 次。只记录建议的程序有 7 次与模型选了同一项，替换建议后，16 种情形里实际动作全部保持原样。改变书目资料则出现另一种结果：遮去作者后，规则在 8 对记录上全部改变了动作，拥有停止权的模型在其中 2 对改变了建议。前一组对照固定资料、改变建议，检验谁有决定权；后一组固定处理方式、改变资料，观察程序和模型怎样应对作者缺失。\par
+右栏的三个结果最终都合并了这对书目。真正区分两项权限的是实际动作：“查年份”得到执行，“停止”却触发了规则指定的来源查询。读这张表的人可以给出一条带条件的分工说明——资料不全、规则要求继续时，模型可选择下一项资料，结束时间由规则掌握。\par
 
 \Needspace{11\baselineskip}
-\subsection{查询次数与匹配质量}
+\subsection{已知分工的验证结果}
 
 \Needspace{8\baselineskip}
-明确各组由谁决定下一步后，我们再考察三种策略在 32 对完整任务中的表现：最后判对了多少对，为此一共查了多少项资料。“误合并”是把两篇当成一篇，“漏合并”是没认出同一篇。\par
+将同一套记录用于全部 16 个状态，结果如下。分子表示替换建议后可以在相应动作之间切换的状态数。第一行的程序直接运行规则，作为基准；第二行会读取并保存建议，实际动作仍与第一行相同。\par
 
 \begingroup\small\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.24}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.27804\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.16161\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.17027\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.17027\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.21981\dimexpr\linewidth-10\tabcolsep\relax}}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.37170\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.31415\dimexpr\linewidth-6\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.31415\dimexpr\linewidth-6\tabcolsep\relax}}
 \toprule
-\textbf{取证方式} & \textbf{判对} & \textbf{误合并} & \textbf{漏合并} & \textbf{查询总次数} \\
+\textbf{预先设定的分工} & \textbf{可在年份和来源间切换} & \textbf{可在停止和继续间切换} \\
 \midrule
 \endhead
-固定查作者和年份 & 27/32 & 5 & 0 & 64 \\
-按条件规则查 & 25/32 & 6 & 1 & 23 \\
-由模型逐步选择 & 26/32 & 5 & 1 & 11 \\
+完全按规则行动 & 0/16 & 0/16 \\
+记录建议，按规则行动 & 0/16 & 0/16 \\
+规则决定是否继续，模型选字段 & 8/16 & 0/16 \\
+模型可选字段，也可停止 & 16/16 & 16/16 \\
 \bottomrule
 \end{longtable}\endgroup
-固定查询用的次数最多，也找回了全部 16 对真实匹配。模型组用了最少的查询，比条件规则少查 12 次，多判对一对。这唯一的差别来自 T28：两篇不同文章的作者都写作 Won Kim，期刊一边用缩写“ACM Trans. Database Syst.”，另一边用全称“ACM Transactions on Database Systems (TODS)”。规则查到相同作者，误以为是同一篇。模型只查了期刊，评分程序碰巧把同一本期刊当成两种来源，最后判为不同篇。\par
+第三行解释了为什么要记录当前条件。8 个作者缺失的状态都要求继续，模型在这 8 个状态中均能切换字段。另 8 个作者完整的状态都由规则直接结束，字段选择没有执行机会。把 8/16 看成“模型一半时间做主”会漏掉一个对开发者重要的事实：是否开放工具选择，取决于规则是否允许进入下一次查询。这与第三种程序预先设定的分工相符。\par
 
-为查明这一对为什么判得不同，我们保留三组原有的查询记录，把期刊缩写和全称统一为同一种写法，重新评分。模型组在 T28 上也出现误合并。统一期刊名称后，模型组和条件规则组对 32 对记录的判断逐条相同，各答对 25 对；两组分别查了 11 次和 23 次。这批书目上的查询差距来自取证路线，原先多答对的一对则可以追溯到期刊名称的处理。这里的查询次数按读取字段计，每查一对书目的一个字段算一次。\par
+使用未经替换的原始建议时，四种程序对 16 个状态的最终判断逐条相同，各答对 12 次。第二种程序还有 7 次实际动作恰好与模型建议相同。将同一份资料在另一条建议下重新执行后，这 7 次也始终按规则行动。这一对照说明了为什么判定表同时保留建议和动作两栏。\par
 
-\section{研究结论与适用范围}
+\section{方法应用与研究结论}
 
-在工具调用系统中，工作流与智能体的决策边界可以落实到每一步取证的分工。程序可以规定资料不足时必须继续查，同时把下一条证据的来源交给模型。在这类系统里，设计者可以分别说明停止条件由谁制定，以及查询年份或来源由谁选择。\par
+\subsection{从一次判断差异追查原因}
 
-本文设计的配对测试固定同一份资料，分别向程序送入改查另一字段和停止查询的建议，以实际动作核对预先设定的分工。在规则决定是否继续、模型选择字段的程序里，16 种情形中有 8 种可以通过替换建议来改变字段，停止时点始终按规则执行。把同一思路用于其他调查任务，需要保留可供重新运行的查询状态，并记录执行了哪个工具、何时停止。\par
+同一张判定表还有一项用途：沿着一次获准执行的动作，追查它是否改变了判断。仍用第三种程序，书目 T30 的两条记录原本属于不同文章。遮去一侧作者后，建议查年份，程序依建议执行，把两篇文章误合并；建议查来源，程序改查来源，正确将它们分开。与 T21 一样，模型能换字段，不能提前停。不同之处在于，T30 选了哪项资料直接影响判断。\par
 
-授权的实际效果取决于任务。对这批书目，模型逐步选择比按条件查询少做了 12 次字段查询；统一期刊名称后，两组留下相同的误合并和漏合并。把判断有分歧的记录放回具体查询过程，还可以找到值得改进的环节。本次找到的是发表来源的别名表。\par
+把视野扩大到完整任务，我们让三种查询策略各自从头核验 32 对书目：按固定顺序查询、按条件规则查询、由模型逐步选取资料。比较后两组时，条件规则查了 23 次、判对 25 对，模型查了 11 次、判对 26 对。要知道多答对的一对从何而来，可以沿着同一张记录表回看两组取得的证据。\par
+
+差异集中在 T28。两篇不同文章的作者都写作 Won Kim。条件规则查了作者，将两篇文章误合并；模型查了发表来源。一个库将期刊写作“ACM Trans. Database Syst.”，另一个写成全称。评分程序当时把两种写法当成不同期刊，结果恰好将这两篇文章分开。保留原有查询路径，只把期刊缩写与全称统一后，模型组也在 T28 上误合并。此时两组对 32 对书目的判断逐条相同，各有 6 次误合并、1 次漏合并。模型仍少查 12 次字段。这里能明确找到两处不同的原因：查询次数取决于调查路线，这一对的判分差异则出在期刊别名表。\par
+
+\subsection{结论与适用范围}
+
+在本文研究的查询环节，工作流与智能体的界限可以写成一条具备条件的分工说明：规则何时允许继续、模型此时能选择哪些工具、模型提出停止时程序会做什么。我们给出的逐项检验把这些问题落到同一状态下可以核对的动作上。对于混合程序，验证结果同时保留了“允许选字段”和“必须继续查”两件事；对于仅记录建议的程序，也能说明模型输出与后台执行之间的关系。\par
+
+将方法用于其他系统，需要能恢复同一查询状态、替换行动建议并读取实际执行记录。开发者可以用这种记录检查一次配置改动是否改变了原有分工。若还要评价授权是否值得，则要像 T28 的复核那样，将查询路径、最终错误和评分规则放回同一项任务中比较。本次使用的开销单位是读取字段的次数。\par
 
 \phantomsection\section*{附录}
 \addcontentsline{toc}{section}{附录}
@@ -3502,11 +3468,25 @@ T30 & 分 & 来源／来源 & 合、合、合 & 分、合、分 \\
 \end{longtable}\endgroup
 在这 8 对记录中，规则在作者完整时都停止，遮盖后都查来源。全表 16 种情形里，5 种会因动作不同而改变判断，另外 11 种采取哪一步都得出相同判断。32 对完整任务中，固定顺序、条件规则、模型选择的 F1 分别为 0.865、0.811、0.833；F1 同时考虑“判为同篇的有多少真的相同”和“所有真匹配有多少被找回”。补齐期刊别名后，模型组 F1 为 0.811。\par
 
+\Needspace{8\baselineskip}
+\textbf{32 对完整任务的查询结果。} 每次读取一对书目的一个字段计为一次查询。下表为补齐 T28 期刊别名前的成绩。\par
+
+\begingroup\small\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.24}
+\begin{longtable}{>{\raggedright\arraybackslash}p{0.27804\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.16161\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.17027\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.17027\dimexpr\linewidth-10\tabcolsep\relax}>{\raggedright\arraybackslash}p{0.21981\dimexpr\linewidth-10\tabcolsep\relax}}
+\toprule
+\textbf{取证方式} & \textbf{判对} & \textbf{误合并} & \textbf{漏合并} & \textbf{查询总次数} \\
+\midrule
+\endhead
+固定查作者和年份 & 27/32 & 5 & 0 & 64 \\
+按条件规则查 & 25/32 & 6 & 1 & 23 \\
+由模型逐步选择 & 26/32 & 5 & 1 & 11 \\
+\bottomrule
+\end{longtable}\endgroup
 \clearpage
 \phantomsection\section*{参考文献}
 \addcontentsline{toc}{section}{参考文献}
 
-{\small\hangindent=1.5em\hangafter=1\noindent [1] Annie Wang, Shangjie Chen. Graph Workflows in ADK: Everything You Need to Know. Google Cloud, 2026-09-29. \href{https://cloud.google.com/blog/topics/developers-practitioners/graph-workflows-in-adk-everything-you-need-to-know}{工程示例}\par}
+{\small\hangindent=1.5em\hangafter=1\noindent [1] Annie Wang, Shangjie Chen. Graph Workflows in ADK: Everything You Need to Know. Google Cloud, 2026-09-30. \href{https://cloud.google.com/blog/topics/developers-practitioners/graph-workflows-in-adk-everything-you-need-to-know}{工程示例}\par}
 
 {\small\hangindent=1.5em\hangafter=1\noindent [2] Shunyu Yao 等. ReAct: Synergizing Reasoning and Acting in Language Models. ICLR, 2023. \href{https://arxiv.org/abs/2210.03629}{论文}\par}
 
@@ -3514,7 +3494,7 @@ T30 & 分 & 来源／来源 & 合、合、合 & 分、合、分 \\
 
 {\small\hangindent=1.5em\hangafter=1\noindent [4] Erwin Huizenga, Bo Yang. Agent Development Kit: Making it easy to build multi-agent applications. Google Developers Blog, 2025-04-09. \href{https://developers.googleblog.com/agent-development-kit-easy-to-build-multi-agent-applications/}{发布说明} · \href{https://adk.dev/agents/workflow-agents/sequential-agents/}{顺序编排文档}\par}
 
-{\small\hangindent=1.5em\hangafter=1\noindent [5] Anthropic. Scaling Managed Agents: Decoupling the brain from the hands. 2026-04-08. \href{https://www.anthropic.com/engineering/managed-agents}{架构说明}\par}
+{\small\hangindent=1.5em\hangafter=1\noindent [5] Anthropic. Scaling Managed Agents: Decoupling the brain from the hands. 2026-04-08. \href{https://www.anthropic.com/research/managed-agents}{架构说明}\par}
 
 {\small\hangindent=1.5em\hangafter=1\noindent [6] Stephan Rabanser 等. Towards a Science of AI Agent Reliability. ICML, 2026. \href{https://proceedings.mlr.press/v306/rabanser26a.html}{会议论文}\par}
 
@@ -3523,5 +3503,7 @@ T30 & 分 & 来源／来源 & 合、合、合 & 分、合、分 \\
 {\small\hangindent=1.5em\hangafter=1\noindent [8] Hajin Shim, Sung Ju Hwang, Eunho Yang. Joint Active Feature Acquisition and Classification with Variable-Size Set Encoding. NeurIPS, 2018. \href{https://proceedings.neurips.cc/paper/2018/hash/e5841df2166dd424a57127423d276bbe-Abstract.html}{会议论文}\par}
 
 {\small\hangindent=1.5em\hangafter=1\noindent [9] Universität Leipzig, Database Group. Benchmark datasets for entity resolution, DBLP–ACM. \href{https://dbs.uni-leipzig.de/research/projects/benchmark-datasets-for-entity-resolution}{数据集} · Hanna Köpcke, Andreas Thor, Erhard Rahm. Evaluation of entity resolution approaches on real-world match problems. PVLDB, 2010. \href{https://www.vldb.org/pvldb/vol3/E04.pdf}{论文}\par}
+
+{\small\hangindent=1.5em\hangafter=1\noindent [10] Anthropic. Demystifying evals for AI agents. 2026-01-09. \href{https://www.anthropic.com/research/demystifying-evals-for-ai-agents}{评测指南}\par}
 
 \end{document}
