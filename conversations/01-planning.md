@@ -1,6 +1,6 @@
 # 数据挖掘课程报告 · AI 协作对话 01
 
-2026-11-19。本记录按时间顺序转存本对话中与课程报告有关的用户和助手可见消息，包含助手的阶段进度消息。当前快照截至第 11 条消息。消息编号、身份、记录范围和文末引用索引为归档说明。原答复中的来源卡片已转换为 Markdown 引用链接。
+2026-11-19。本记录按时间顺序转存本对话中与课程报告有关的用户和助手可见消息，包含助手的阶段进度消息。当前快照截至第 12 条消息。消息编号、身份、记录范围和文末引用索引为归档说明。原答复中的来源卡片已转换为 Markdown 引用链接。
 
 ## 1 · 用户
 
@@ -98,6 +98,18 @@
 ## 11 · 助手（进度消息）
 
 在 32 对测试记录上，Agent 比条件工作流少查了 12 次字段，原本也多判对了 1 对。逐条核验发现，那一例涉及同一本期刊的缩写和全称。固定查询动作、只修正这条别名后，两组对全部 32 对记录的判断完全一致。我已把原始成绩和这次复核都写进正文。
+
+## 12 · 助手
+
+课程报告已完成，已上传到你的[公开 GitHub 仓库](https://github.com/aichikelebing/workflow-agent-course-report)。8 页报告的首页放了可点击的仓库地址，实验代码和逐条结果也已上传并通过重放核验。
+
+[报告 PDF](https://github.com/aichikelebing/workflow-agent-course-report/blob/main/report/report.pdf) · [LaTeX 源码](https://github.com/aichikelebing/workflow-agent-course-report/blob/main/report/report.tex) · [完整协作记录（Markdown）](https://github.com/aichikelebing/workflow-agent-course-report/blob/main/conversations/01-planning.md) · [实验复核说明](https://github.com/aichikelebing/workflow-agent-course-report/blob/main/experiments/README.md)
+
+报告参考了范例从研究问题展开到方法、验证和结论的写法。最能回答“真实界限”的发现是：**遮盖同一批论文的作者信息后，条件工作流在 8 对中全部改了下一步，Agent 只改了 2 对。** 因此，仅看系统会不会根据反馈改道，无法辨认它是不是 Agent，还要检查下一步由谁决定。
+
+在 32 对正式测试中，Agent 用 11 次字段查询完成核验，条件工作流用了 23 次。Agent 原本多判对的唯一一例，来自同一本期刊的缩写和全称被判定器当成了不同来源。只修正这条别名，两组对全部 32 对记录的判断就完全一致。报告保留了原始成绩和修正后的结果。
+
+**提交前还需填写封面的姓名、学号和院所。** PDF 已逐页检查。LaTeX 源码与 PDF 使用同一份正文，本次环境未安装 XeLaTeX，源码尚未独立编译验证。
 
 ---
 
