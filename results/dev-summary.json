@@ -1,0 +1,26 @@
+{
+  "A": {
+    "n": 8,
+    "tp": 4,
+    "fp": 0,
+    "fn": 0,
+    "tn": 4,
+    "f1": 1.0,
+    "accuracy": 1.0,
+    "field_queries": 16,
+    "controller_decisions": 0,
+    "avg_queries": 2.0
+  },
+  "B": {
+    "n": 8,
+    "tp": 4,
+    "fp": 0,
+    "fn": 0,
+    "tn": 4,
+    "f1": 1.0,
+    "accuracy": 1.0,
+    "field_queries": 7,
+    "controller_decisions": 0,
+    "avg_queries": 0.875
+  }
+}

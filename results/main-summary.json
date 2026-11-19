@@ -1,0 +1,38 @@
+{
+  "A": {
+    "n": 32,
+    "tp": 16,
+    "fp": 5,
+    "fn": 0,
+    "tn": 11,
+    "f1": 0.8649,
+    "accuracy": 0.8438,
+    "field_queries": 64,
+    "controller_decisions": 0,
+    "avg_queries": 2.0
+  },
+  "B": {
+    "n": 32,
+    "tp": 15,
+    "fp": 6,
+    "fn": 1,
+    "tn": 10,
+    "f1": 0.8108,
+    "accuracy": 0.7812,
+    "field_queries": 23,
+    "controller_decisions": 0,
+    "avg_queries": 0.7188
+  },
+  "C": {
+    "n": 32,
+    "tp": 15,
+    "fp": 5,
+    "fn": 1,
+    "tn": 11,
+    "f1": 0.8333,
+    "accuracy": 0.8125,
+    "field_queries": 11,
+    "controller_decisions": 39,
+    "avg_queries": 0.3438
+  }
+}
